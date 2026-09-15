@@ -40,20 +40,21 @@ type ModelBenchmark struct {
 	Imported bool   `json:"imported"`
 	// Source keeps the record's local provenance. Imported is retained for
 	// compatibility with reports created by older versions of the app.
-	Source            string               `json:"source,omitempty"`
-	OriginDeviceID    string               `json:"originDeviceID,omitempty"`
-	OriginDeviceName  string               `json:"originDeviceName,omitempty"`
-	OriginBenchmarkID string               `json:"originBenchmarkID,omitempty"`
-	ProfileID         string               `json:"profileID"`
-	ProfileName       string               `json:"profileName"`
-	ProfileBaseURL    string               `json:"profileBaseURL"`
-	Model             string               `json:"model"`
-	ReasoningEffort   string               `json:"reasoningEffort,omitempty"`
-	SuiteName         string               `json:"suiteName"`
-	Status            string               `json:"status"`
-	CreatedAt         string               `json:"createdAt"`
-	UpdatedAt         string               `json:"updatedAt"`
-	Cases             []ModelBenchmarkCase `json:"cases"`
+	Source            string                      `json:"source,omitempty"`
+	OriginDeviceID    string                      `json:"originDeviceID,omitempty"`
+	OriginDeviceName  string                      `json:"originDeviceName,omitempty"`
+	OriginBenchmarkID string                      `json:"originBenchmarkID,omitempty"`
+	ProfileID         string                      `json:"profileID"`
+	ProfileName       string                      `json:"profileName"`
+	ProfileBaseURL    string                      `json:"profileBaseURL"`
+	Model             string                      `json:"model"`
+	ReasoningEffort   string                      `json:"reasoningEffort,omitempty"`
+	SuiteName         string                      `json:"suiteName"`
+	Status            string                      `json:"status"`
+	CreatedAt         string                      `json:"createdAt"`
+	UpdatedAt         string                      `json:"updatedAt"`
+	Cases             []ModelBenchmarkCase        `json:"cases"`
+	Proof             *BenchmarkSyncV2RecordProof `json:"proof,omitempty"`
 }
 
 type ModelBenchmarkSummary struct {
@@ -94,6 +95,7 @@ func (s *modelBenchmarkStore) Create(benchmark ModelBenchmark) (ModelBenchmark, 
 	benchmark.OriginDeviceID = ""
 	benchmark.OriginDeviceName = ""
 	benchmark.OriginBenchmarkID = ""
+	benchmark.Proof = nil
 	if benchmark.ID == "" {
 		benchmark.ID = newConversationID()
 	}
@@ -117,12 +119,42 @@ func (s *modelBenchmarkStore) Save(benchmark ModelBenchmark) (ModelBenchmark, er
 	if benchmark.Source != benchmarkSourceLocal {
 		return ModelBenchmark{}, errors.New("가져온 벤치마크 결과는 수정할 수 없습니다")
 	}
+	// Local edits invalidate an earlier proof. v2 creates a replacement proof
+	// only when the record is prepared for a trusted secure transfer.
+	benchmark.Proof = nil
 	if benchmark.CreatedAt == "" {
 		return ModelBenchmark{}, errors.New("벤치마크 생성 시간이 없습니다")
 	}
 	benchmark.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
 	if err := validateModelBenchmark(benchmark); err != nil {
 		return ModelBenchmark{}, err
+	}
+	if err := s.saveLocked(benchmark); err != nil {
+		return ModelBenchmark{}, err
+	}
+	return benchmark, nil
+}
+
+// SaveV2Proof stores a proof that was created from the record's current
+// completed contents. It intentionally does not change UpdatedAt: that field
+// is included in the proof and changing it after signing would invalidate the
+// record. Ordinary Save calls clear this proof when a local record is edited.
+func (s *modelBenchmarkStore) SaveV2Proof(benchmark ModelBenchmark) (ModelBenchmark, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	benchmark = normalizeModelBenchmark(benchmark)
+	if benchmark.Source != benchmarkSourceLocal {
+		return ModelBenchmark{}, errors.New("가져온 벤치마크에는 로컬 v2 proof를 저장할 수 없습니다")
+	}
+	if benchmark.Proof == nil {
+		return ModelBenchmark{}, errors.New("저장할 v2 결과 proof가 없습니다")
+	}
+	if err := validateModelBenchmark(benchmark); err != nil {
+		return ModelBenchmark{}, err
+	}
+	if err := verifyBenchmarkSyncV2RecordProof(benchmark, ""); err != nil {
+		return ModelBenchmark{}, fmt.Errorf("저장할 v2 결과 proof가 올바르지 않습니다: %w", err)
 	}
 	if err := s.saveLocked(benchmark); err != nil {
 		return ModelBenchmark{}, err
@@ -270,6 +302,16 @@ func normalizeModelBenchmark(benchmark ModelBenchmark) ModelBenchmark {
 	benchmark.OriginDeviceID = strings.TrimSpace(benchmark.OriginDeviceID)
 	benchmark.OriginDeviceName = normalizeProfileName(benchmark.OriginDeviceName)
 	benchmark.OriginBenchmarkID = strings.TrimSpace(benchmark.OriginBenchmarkID)
+	if benchmark.Proof != nil {
+		proof := *benchmark.Proof
+		proof.KeyID = strings.TrimSpace(proof.KeyID)
+		proof.OriginBenchmarkID = strings.TrimSpace(proof.OriginBenchmarkID)
+		proof.SignedAt = strings.TrimSpace(proof.SignedAt)
+		proof.PayloadSHA256 = strings.TrimSpace(proof.PayloadSHA256)
+		proof.Signature = strings.TrimSpace(proof.Signature)
+		proof.SigningPublicKeyPEM = strings.TrimSpace(proof.SigningPublicKeyPEM)
+		benchmark.Proof = &proof
+	}
 	benchmark.Imported = benchmark.Source != benchmarkSourceLocal
 	benchmark.ProfileID = strings.TrimSpace(benchmark.ProfileID)
 	benchmark.ProfileName = normalizeProfileName(benchmark.ProfileName)

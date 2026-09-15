@@ -9,24 +9,41 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 // @ts-ignore: Unused imports
 import * as $models from "./models.js";
 
-export function ApproveBenchmarkSyncPairing(requestID: string): $CancellablePromise<$models.BenchmarkSyncState> {
-    return $Call.ByID(1241619706, requestID);
+export function ApproveBenchmarkSyncV2Pairing(requestID: string): $CancellablePromise<$models.BenchmarkSyncV2State> {
+    return $Call.ByID(3250957274, requestID);
 }
 
 export function CancelChat(requestID: string): $CancellablePromise<boolean> {
     return $Call.ByID(2522773405, requestID);
 }
 
-export function CheckBenchmarkSyncPairing(requestID: string): $CancellablePromise<$models.BenchmarkSyncState> {
-    return $Call.ByID(3387929511, requestID);
+export function CheckBenchmarkSyncV2Pairing(requestID: string): $CancellablePromise<$models.BenchmarkSyncV2OutgoingPairing> {
+    return $Call.ByID(4186873435, requestID);
 }
 
-export function ClearBenchmarkSyncLogs(): $CancellablePromise<$models.BenchmarkSyncState> {
-    return $Call.ByID(458136437);
+export function ClearBenchmarkSyncV2Logs(): $CancellablePromise<$models.BenchmarkSyncV2State> {
+    return $Call.ByID(3957585205);
 }
 
-export function CreateBenchmarkSyncPairingCode(): $CancellablePromise<$models.BenchmarkSyncState> {
-    return $Call.ByID(2196712624);
+/**
+ * ConfigureBenchmarkSyncV2DirectTLS configures and starts the application's
+ * own v2 HTTPS listener. The private-key contents remain in the selected PEM
+ * file and are never returned to the frontend or written to app state.
+ */
+export function ConfigureBenchmarkSyncV2DirectTLS(publicHTTPSURL: string, certificatePath: string, privateKeyPath: string, listenAddress: string): $CancellablePromise<$models.BenchmarkSyncV2State> {
+    return $Call.ByID(3279866869, publicHTTPSURL, certificatePath, privateKeyPath, listenAddress);
+}
+
+export function ConfirmBenchmarkSyncV2Pairing(requestID: string): $CancellablePromise<$models.BenchmarkSyncV2State> {
+    return $Call.ByID(441034003, requestID);
+}
+
+/**
+ * CreateBenchmarkSyncV2PairingInvitation returns a short-lived invitation
+ * secret exactly once. The secret is never written to the sync state or logs.
+ */
+export function CreateBenchmarkSyncV2PairingInvitation(): $CancellablePromise<$models.BenchmarkSyncV2Invitation> {
+    return $Call.ByID(1691730614);
 }
 
 export function CreateConversation(): $CancellablePromise<$models.Conversation> {
@@ -35,10 +52,6 @@ export function CreateConversation(): $CancellablePromise<$models.Conversation> 
 
 export function CreateModelBenchmark(benchmark: $models.ModelBenchmark): $CancellablePromise<$models.ModelBenchmark> {
     return $Call.ByID(1784962657, benchmark);
-}
-
-export function DeleteBenchmarkSyncPeer(deviceID: string): $CancellablePromise<$models.BenchmarkSyncState> {
-    return $Call.ByID(3461360998, deviceID);
 }
 
 export function DeleteConversation(id: string): $CancellablePromise<void> {
@@ -53,8 +66,17 @@ export function DeleteSavedConnectionProfile(id: string): $CancellablePromise<vo
     return $Call.ByID(4225912054, id);
 }
 
-export function GetBenchmarkSyncState(): $CancellablePromise<$models.BenchmarkSyncState> {
-    return $Call.ByID(2636766830);
+/**
+ * GetBenchmarkSyncV2Identity creates the local v2 identity on first use and
+ * returns only its public information. Pairing uses these fingerprints to help
+ * a user spot a different or replaced device key.
+ */
+export function GetBenchmarkSyncV2Identity(): $CancellablePromise<$models.BenchmarkSyncV2Identity> {
+    return $Call.ByID(3451725207);
+}
+
+export function GetBenchmarkSyncV2State(): $CancellablePromise<$models.BenchmarkSyncV2State> {
+    return $Call.ByID(439277450);
 }
 
 /**
@@ -93,12 +115,17 @@ export function OpenModelBenchmark(id: string): $CancellablePromise<$models.Mode
     return $Call.ByID(2364498477, id);
 }
 
-export function RejectBenchmarkSyncPairing(requestID: string): $CancellablePromise<$models.BenchmarkSyncState> {
-    return $Call.ByID(2463881622, requestID);
+/**
+ * PrepareModelBenchmarkForSecureSync adds a durable v2 proof to an already
+ * completed local result. The forthcoming v2 transport calls this before it
+ * creates an encrypted outbound record batch.
+ */
+export function PrepareModelBenchmarkForSecureSync(id: string): $CancellablePromise<$models.ModelBenchmark> {
+    return $Call.ByID(1622920301, id);
 }
 
-export function RunBenchmarkSync(deviceID: string, direction: string): $CancellablePromise<$models.BenchmarkSyncState> {
-    return $Call.ByID(356619878, deviceID, direction);
+export function RejectBenchmarkSyncV2Pairing(requestID: string): $CancellablePromise<$models.BenchmarkSyncV2State> {
+    return $Call.ByID(3791427230, requestID);
 }
 
 /**
@@ -131,14 +158,18 @@ export function SaveNamedConnectionProfile(profile: $models.SavedConnectionProfi
     return $Call.ByID(3901251290, profile);
 }
 
-export function StartBenchmarkSyncPairing(address: string, code: string): $CancellablePromise<$models.BenchmarkSyncState> {
-    return $Call.ByID(4201909007, address, code);
+export function StartBenchmarkSyncV2Pairing(publicHTTPSURL: string, pairingSecret: string): $CancellablePromise<$models.BenchmarkSyncV2OutgoingPairing> {
+    return $Call.ByID(1663538243, publicHTTPSURL, pairingSecret);
 }
 
 export function StartChat(request: $models.ChatRequest): $CancellablePromise<void> {
     return $Call.ByID(1745474569, request);
 }
 
-export function UpdateBenchmarkSyncDeviceName(name: string): $CancellablePromise<$models.BenchmarkSyncState> {
-    return $Call.ByID(2030519413, name);
+export function StopBenchmarkSyncV2Endpoint(): $CancellablePromise<$models.BenchmarkSyncV2State> {
+    return $Call.ByID(3266274070);
+}
+
+export function UpdateBenchmarkSyncV2DeviceName(name: string): $CancellablePromise<$models.BenchmarkSyncV2State> {
+    return $Call.ByID(2609947213, name);
 }

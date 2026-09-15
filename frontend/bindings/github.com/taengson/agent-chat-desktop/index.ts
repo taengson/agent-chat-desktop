@@ -7,10 +7,14 @@ export {
 };
 
 export type {
-    BenchmarkSyncLog,
-    BenchmarkSyncPairRequest,
-    BenchmarkSyncPeer,
-    BenchmarkSyncState,
+    BenchmarkSyncV2Identity,
+    BenchmarkSyncV2Invitation,
+    BenchmarkSyncV2Log,
+    BenchmarkSyncV2OutgoingPairing,
+    BenchmarkSyncV2Peer,
+    BenchmarkSyncV2PendingPairing,
+    BenchmarkSyncV2RecordProof,
+    BenchmarkSyncV2State,
     ChatAttachment,
     ChatEvent,
     ChatMessage,

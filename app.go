@@ -228,7 +228,7 @@ type App struct {
 	conversations *conversationStore
 	profiles      *connectionProfileStore
 	benchmarks    *modelBenchmarkStore
-	sync          *benchmarkSyncStore
+	syncV2        *benchmarkSyncV2Store
 	eventSink     func(ChatEvent)
 }
 
@@ -239,13 +239,16 @@ func NewApp() *App {
 		conversations: newConversationStore(""),
 		profiles:      newConnectionProfileStore(""),
 		benchmarks:    benchmarks,
-		sync:          newBenchmarkSyncStore("", benchmarks),
+		syncV2:        newBenchmarkSyncV2Store(""),
 	}
 }
 
 func (a *App) ServiceStartup(ctx context.Context, _ application.ServiceOptions) error {
 	a.ctx = ctx
-	return a.sync.ResetSession()
+	// A broken optional sync listener must not stop the chat application from
+	// starting. The v2 store records a sanitized failure in its local audit log.
+	_ = a.syncV2.StartConfiguredEndpoint()
+	return nil
 }
 
 func (a *App) ServiceShutdown() error {
@@ -255,7 +258,29 @@ func (a *App) ServiceShutdown() error {
 		delete(a.cancels, id)
 	}
 	a.mu.Unlock()
-	return a.sync.Close()
+	return a.syncV2.Close()
+}
+
+// GetBenchmarkSyncV2Identity creates the local v2 identity on first use and
+// returns only its public information. Pairing uses these fingerprints to help
+// a user spot a different or replaced device key.
+func (a *App) GetBenchmarkSyncV2Identity() (BenchmarkSyncV2Identity, error) {
+	return a.syncV2.Identity()
+}
+
+// PrepareModelBenchmarkForSecureSync adds a durable v2 proof to an already
+// completed local result. The forthcoming v2 transport calls this before it
+// creates an encrypted outbound record batch.
+func (a *App) PrepareModelBenchmarkForSecureSync(id string) (ModelBenchmark, error) {
+	benchmark, err := a.benchmarks.Open(id)
+	if err != nil {
+		return ModelBenchmark{}, err
+	}
+	signed, err := a.syncV2.SignRecord(benchmark)
+	if err != nil {
+		return ModelBenchmark{}, err
+	}
+	return a.benchmarks.SaveV2Proof(signed)
 }
 
 func (a *App) ListModels(profile ConnectionProfile) ([]Model, error) {
@@ -339,15 +364,6 @@ func (a *App) OpenModelBenchmark(id string) (ModelBenchmark, error) {
 }
 
 func (a *App) DeleteModelBenchmark(id string) error {
-	benchmark, err := a.benchmarks.Open(id)
-	if err != nil {
-		return err
-	}
-	if benchmark.Source != benchmarkSourceLocal {
-		if err := a.sync.IgnoreBenchmark(benchmark); err != nil {
-			return err
-		}
-	}
 	return a.benchmarks.Delete(id)
 }
 
@@ -357,44 +373,53 @@ func (a *App) ImportBenchmarkReport(path string) (ModelBenchmarkImportResult, er
 	return a.benchmarks.ImportReport(path)
 }
 
-func (a *App) GetBenchmarkSyncState() (BenchmarkSyncState, error) {
-	return a.sync.State()
+func (a *App) GetBenchmarkSyncV2State() (BenchmarkSyncV2State, error) {
+	return a.syncV2.State()
 }
 
-func (a *App) UpdateBenchmarkSyncDeviceName(name string) (BenchmarkSyncState, error) {
-	return a.sync.UpdateDeviceName(name)
+func (a *App) UpdateBenchmarkSyncV2DeviceName(name string) (BenchmarkSyncV2State, error) {
+	return a.syncV2.UpdateDeviceName(name)
 }
 
-func (a *App) CreateBenchmarkSyncPairingCode() (BenchmarkSyncState, error) {
-	return a.sync.CreatePairingCode()
+// ConfigureBenchmarkSyncV2DirectTLS configures and starts the application's
+// own v2 HTTPS listener. The private-key contents remain in the selected PEM
+// file and are never returned to the frontend or written to app state.
+func (a *App) ConfigureBenchmarkSyncV2DirectTLS(publicHTTPSURL, certificatePath, privateKeyPath, listenAddress string) (BenchmarkSyncV2State, error) {
+	return a.syncV2.ConfigureDirectTLS(publicHTTPSURL, certificatePath, privateKeyPath, listenAddress)
 }
 
-func (a *App) StartBenchmarkSyncPairing(address, code string) (BenchmarkSyncState, error) {
-	return a.sync.StartPairing(address, code)
+func (a *App) StopBenchmarkSyncV2Endpoint() (BenchmarkSyncV2State, error) {
+	return a.syncV2.StopEndpoint()
 }
 
-func (a *App) CheckBenchmarkSyncPairing(requestID string) (BenchmarkSyncState, error) {
-	return a.sync.CheckPairing(requestID)
+// CreateBenchmarkSyncV2PairingInvitation returns a short-lived invitation
+// secret exactly once. The secret is never written to the sync state or logs.
+func (a *App) CreateBenchmarkSyncV2PairingInvitation() (BenchmarkSyncV2Invitation, error) {
+	return a.syncV2.CreatePairingInvitation()
 }
 
-func (a *App) ApproveBenchmarkSyncPairing(requestID string) (BenchmarkSyncState, error) {
-	return a.sync.ApprovePairing(requestID)
+func (a *App) StartBenchmarkSyncV2Pairing(publicHTTPSURL, pairingSecret string) (BenchmarkSyncV2OutgoingPairing, error) {
+	return a.syncV2.StartPairing(publicHTTPSURL, pairingSecret)
 }
 
-func (a *App) RejectBenchmarkSyncPairing(requestID string) (BenchmarkSyncState, error) {
-	return a.sync.RejectPairing(requestID)
+func (a *App) CheckBenchmarkSyncV2Pairing(requestID string) (BenchmarkSyncV2OutgoingPairing, error) {
+	return a.syncV2.CheckPairing(requestID)
 }
 
-func (a *App) DeleteBenchmarkSyncPeer(deviceID string) (BenchmarkSyncState, error) {
-	return a.sync.DeletePeer(deviceID)
+func (a *App) ConfirmBenchmarkSyncV2Pairing(requestID string) (BenchmarkSyncV2State, error) {
+	return a.syncV2.ConfirmPairing(requestID)
 }
 
-func (a *App) RunBenchmarkSync(deviceID, direction string) (BenchmarkSyncState, error) {
-	return a.sync.Run(deviceID, direction)
+func (a *App) ApproveBenchmarkSyncV2Pairing(requestID string) (BenchmarkSyncV2State, error) {
+	return a.syncV2.ApprovePairing(requestID)
 }
 
-func (a *App) ClearBenchmarkSyncLogs() (BenchmarkSyncState, error) {
-	return a.sync.ClearLogs()
+func (a *App) RejectBenchmarkSyncV2Pairing(requestID string) (BenchmarkSyncV2State, error) {
+	return a.syncV2.RejectPairing(requestID)
+}
+
+func (a *App) ClearBenchmarkSyncV2Logs() (BenchmarkSyncV2State, error) {
+	return a.syncV2.ClearLogs()
 }
 
 // SaveBenchmarkExport writes a user-selected benchmark report.

@@ -264,6 +264,7 @@ func benchmarkImportFingerprint(benchmark ModelBenchmark) ([sha256.Size]byte, er
 	benchmark.OriginDeviceID = ""
 	benchmark.OriginDeviceName = ""
 	benchmark.OriginBenchmarkID = ""
+	benchmark.Proof = nil
 	payload, err := json.Marshal(benchmark)
 	if err != nil {
 		return [sha256.Size]byte{}, err

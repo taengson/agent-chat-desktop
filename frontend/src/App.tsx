@@ -6,7 +6,6 @@ import {renderToStaticMarkup} from 'react-dom/server';
 import remarkGfm from 'remark-gfm';
 import {App as ChatService} from '../bindings/github.com/taengson/agent-chat-desktop';
 import type {
-    BenchmarkSyncLog,
     ChatEvent,
     ChatAttachment,
     ChatRequest,
@@ -19,11 +18,7 @@ import type {
     TokenUsage,
 } from '../bindings/github.com/taengson/agent-chat-desktop/models';
 import ModelBenchmarkWorkspace, {type ModelBenchmarkSidebarState} from './ModelBenchmark';
-import BenchmarkSyncWorkspace, {
-    benchmarkSyncSidebarState,
-    emptyBenchmarkSyncSidebar,
-    type BenchmarkSyncSidebarState,
-} from './BenchmarkSync';
+import BenchmarkSyncWorkspace from './BenchmarkSync';
 import OpenRouterModelPicker, {isOpenRouterURL} from './OpenRouterModelPicker';
 import {messagesForModel} from './chatContext';
 import {
@@ -476,16 +471,6 @@ function formatUpdatedAt(value: string): string {
     return new Intl.DateTimeFormat('ko-KR', {month: 'short', day: 'numeric'}).format(date);
 }
 
-function latestSyncLog(logs: BenchmarkSyncLog[], deviceID: string): BenchmarkSyncLog | undefined {
-    return logs.find((log) => log.peerDeviceID === deviceID);
-}
-
-function syncSidebarStatus(log?: BenchmarkSyncLog): string {
-    if (!log) return '아직 동기화하지 않음';
-    const outcome = log.status === 'completed' ? '마지막 동기화 완료' : '마지막 동기화 실패';
-    return `${outcome} · ${formatUpdatedAt(log.occurredAt)}`;
-}
-
 function canSaveConnectionProfile(baseURL: string): boolean {
     try {
         const parsed = new URL(baseURL);
@@ -610,11 +595,6 @@ function App() {
     const [sidebarVisible, setSidebarVisible] = useState(true);
     const [benchmarkBusy, setBenchmarkBusy] = useState(false);
     const [benchmarkSidebar, setBenchmarkSidebar] = useState<ModelBenchmarkSidebarState>(emptyBenchmarkSidebar);
-    const [syncSidebar, setSyncSidebar] = useState<BenchmarkSyncSidebarState>(emptyBenchmarkSyncSidebar);
-    const [syncRefreshKey, setSyncRefreshKey] = useState(0);
-    const [syncMonitoringEnabled, setSyncMonitoringEnabled] = useState(false);
-    const [syncSidebarError, setSyncSidebarError] = useState('');
-    const [syncSidebarAction, setSyncSidebarAction] = useState('');
     const [benchmarkHistorySectionOpen, setBenchmarkHistorySectionOpen] = useState<BenchmarkHistorySectionOpenState>(loadBenchmarkHistorySectionOpenState);
     const [benchmarkOpenRequestID, setBenchmarkOpenRequestID] = useState<string | null>(null);
     const [benchmarkHistoryRefreshKey, setBenchmarkHistoryRefreshKey] = useState(0);
@@ -726,53 +706,10 @@ function App() {
         setBenchmarkSidebar(nextState);
     }, []);
 
-    const handleSyncSidebarChange = useCallback((nextState: BenchmarkSyncSidebarState) => {
-        setSyncSidebar(nextState);
-    }, []);
-
     const openSyncWorkspace = useCallback(() => {
-        setSyncMonitoringEnabled(true);
         setWorkspace('sync');
         setConnectionSettingsOpen(false);
     }, []);
-
-    useEffect(() => {
-        if (!syncMonitoringEnabled) return undefined;
-
-        let disposed = false;
-        const refreshIncomingRequests = async () => {
-            try {
-                const next = await ChatService.GetBenchmarkSyncState();
-                if (!disposed) setSyncSidebar(benchmarkSyncSidebarState(next));
-            } catch {
-                // Keep the last known request state when the local sync service is temporarily unavailable.
-            }
-        };
-
-        void refreshIncomingRequests();
-        const timer = window.setInterval(() => void refreshIncomingRequests(), 3_000);
-        return () => {
-            disposed = true;
-            window.clearInterval(timer);
-        };
-    }, [syncMonitoringEnabled]);
-
-    const handleSyncPairingRequest = useCallback(async (requestID: string, decision: 'approve' | 'reject') => {
-        if (syncSidebarAction) return;
-        try {
-            setSyncSidebarAction(`${decision}-${requestID}`);
-            setSyncSidebarError('');
-            const next = decision === 'approve'
-                ? await ChatService.ApproveBenchmarkSyncPairing(requestID)
-                : await ChatService.RejectBenchmarkSyncPairing(requestID);
-            setSyncSidebar(benchmarkSyncSidebarState(next));
-            setSyncRefreshKey((current) => current + 1);
-        } catch (reason) {
-            setSyncSidebarError(reason instanceof Error ? reason.message : String(reason));
-        } finally {
-            setSyncSidebarAction('');
-        }
-    }, [syncSidebarAction]);
 
     const handleBenchmarkOpenRequestHandled = useCallback(() => {
         setBenchmarkOpenRequestID(null);
@@ -1793,7 +1730,6 @@ function App() {
                         disabled={busy || benchmarkBusy}
                     >
                         <span>결과 동기화</span>
-                        {syncSidebar.incomingRequests.length > 0 && <small className="workspace-sync-badge" aria-label={`받은 연결 요청 ${syncSidebar.incomingRequests.length}건`}>{syncSidebar.incomingRequests.length}</small>}
                     </button>
                 </nav>
 
@@ -1990,40 +1926,8 @@ function App() {
                     </section>
                 ) : (
                     <section className="sync-sidebar" aria-label="결과 동기화">
-                        <div className="section-heading"><span>결과 동기화</span></div>
-                        {syncSidebarError && <p className="sync-sidebar-error" role="alert">{syncSidebarError}</p>}
-                        {syncSidebar.incomingRequests.length > 0 && (
-                            <section className="sync-sidebar-requests" aria-label="받은 연결 요청">
-                                <div className="sync-sidebar-heading"><strong>받은 연결 요청</strong><small>{syncSidebar.incomingRequests.length}</small></div>
-                                {syncSidebar.incomingRequests.map((request) => (
-                                    <article className="sync-sidebar-request" key={request.requestID}>
-                                        <strong>{request.deviceName}</strong>
-                                        <span title={request.address}>{request.address}</span>
-                                        <div>
-                                            <button className="text-button danger" type="button" disabled={Boolean(syncSidebarAction)} onClick={() => void handleSyncPairingRequest(request.requestID, 'reject')}>거절</button>
-                                            <button className="text-button" type="button" disabled={Boolean(syncSidebarAction)} onClick={() => void handleSyncPairingRequest(request.requestID, 'approve')}>승인</button>
-                                        </div>
-                                    </article>
-                                ))}
-                            </section>
-                        )}
-                        <section className="sync-sidebar-peers" aria-label="연결된 PC">
-                            <div className="sync-sidebar-heading"><strong>연결된 PC</strong><small>{syncSidebar.peers.length}</small></div>
-                            {syncSidebar.peers.length === 0 ? (
-                                <p>아직 연결된 PC가 없습니다.</p>
-                            ) : (
-                                <div className="sync-sidebar-peer-list">
-                                    {syncSidebar.peers.map((peer) => {
-                                        const log = latestSyncLog(syncSidebar.logs, peer.deviceID);
-                                        return <article className="sync-sidebar-peer" key={peer.deviceID}>
-                                            <strong>{peer.deviceName}</strong>
-                                            <span title={peer.address}>{peer.address}</span>
-                                            <small className={log?.status === 'failed' ? 'failed' : ''}>{syncSidebarStatus(log)}</small>
-                                        </article>;
-                                    })}
-                                </div>
-                            )}
-                        </section>
+                        <div className="section-heading"><span>안전한 결과 동기화</span></div>
+                        <p>외부 HTTPS와 장치 fingerprint를 사용하는 v2 연결을 준비합니다.</p>
                         <small>API 키, 연결 설정, 대화 내용은 전송하지 않습니다.</small>
                     </section>
                 )}
@@ -2037,17 +1941,6 @@ function App() {
             >
                 <span aria-hidden="true">›</span>
             </button>
-
-            {workspace !== 'sync' && syncSidebar.incomingRequests.length > 0 && (
-                <section className="sync-request-notice" aria-live="polite">
-                    <div>
-                        <span>새 연결 요청 {syncSidebar.incomingRequests.length}건</span>
-                        <strong>{syncSidebar.incomingRequests[0].deviceName}{syncSidebar.incomingRequests.length > 1 ? ` 외 ${syncSidebar.incomingRequests.length - 1}대` : ''}</strong>
-                        <p>다른 PC에서 벤치마크 결과 동기화를 요청했습니다.</p>
-                    </div>
-                    <button className="primary-button" type="button" onClick={openSyncWorkspace}>확인하기</button>
-                </section>
-            )}
 
             {workspace === 'benchmark' ? (
                 <main className="benchmark-panel">
@@ -2065,11 +1958,7 @@ function App() {
                     />
                 </main>
             ) : workspace === 'sync' ? (
-                <BenchmarkSyncWorkspace
-                    onBenchmarkHistoryChanged={() => setBenchmarkHistoryRefreshKey((current) => current + 1)}
-                    onSidebarChange={handleSyncSidebarChange}
-                    refreshKey={syncRefreshKey}
-                />
+                <BenchmarkSyncWorkspace />
             ) : connectionSettingsOpen ? (
                 renderConnectionSettings()
             ) : (

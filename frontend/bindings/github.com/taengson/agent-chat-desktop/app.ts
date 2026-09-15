@@ -67,6 +67,15 @@ export function DeleteSavedConnectionProfile(id: string): $CancellablePromise<vo
 }
 
 /**
+ * GenerateBenchmarkSyncV2TLSCertificateRequest makes a new TLS private key
+ * and certificate signing request in user-selected files. It does not issue a
+ * trusted certificate; the CSR must be signed by a public or organisation CA.
+ */
+export function GenerateBenchmarkSyncV2TLSCertificateRequest(publicHTTPSURL: string, privateKeyPath: string, certificateRequestPath: string): $CancellablePromise<$models.BenchmarkSyncV2TLSCertificateRequest> {
+    return $Call.ByID(1483035123, publicHTTPSURL, privateKeyPath, certificateRequestPath);
+}
+
+/**
  * GetBenchmarkSyncV2Identity creates the local v2 identity on first use and
  * returns only its public information. Pairing uses these fingerprints to help
  * a user spot a different or replaced device key.

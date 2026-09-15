@@ -111,6 +111,17 @@ export interface BenchmarkSyncV2State {
 }
 
 /**
+ * BenchmarkSyncV2TLSCertificateRequest identifies the two user-chosen files
+ * created for a public TLS certificate application. The private-key contents
+ * are intentionally never returned to the frontend.
+ */
+export interface BenchmarkSyncV2TLSCertificateRequest {
+    "domain": string;
+    "privateKeyPath": string;
+    "certificateRequestPath": string;
+}
+
+/**
  * ChatAttachment stores the locally extracted and selected text for an
  * attached text, source-code file, text-based PDF, DOCX, or XLSX file. The
  * original file is never copied from its location.

@@ -15,6 +15,7 @@ export type {
     BenchmarkSyncV2PendingPairing,
     BenchmarkSyncV2RecordProof,
     BenchmarkSyncV2State,
+    BenchmarkSyncV2TLSCertificateRequest,
     ChatAttachment,
     ChatEvent,
     ChatMessage,

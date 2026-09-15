@@ -388,6 +388,13 @@ func (a *App) ConfigureBenchmarkSyncV2DirectTLS(publicHTTPSURL, certificatePath,
 	return a.syncV2.ConfigureDirectTLS(publicHTTPSURL, certificatePath, privateKeyPath, listenAddress)
 }
 
+// GenerateBenchmarkSyncV2TLSCertificateRequest makes a new TLS private key
+// and certificate signing request in user-selected files. It does not issue a
+// trusted certificate; the CSR must be signed by a public or organisation CA.
+func (a *App) GenerateBenchmarkSyncV2TLSCertificateRequest(publicHTTPSURL, privateKeyPath, certificateRequestPath string) (BenchmarkSyncV2TLSCertificateRequest, error) {
+	return GenerateBenchmarkSyncV2TLSCertificateRequest(publicHTTPSURL, privateKeyPath, certificateRequestPath)
+}
+
 func (a *App) StopBenchmarkSyncV2Endpoint() (BenchmarkSyncV2State, error) {
 	return a.syncV2.StopEndpoint()
 }

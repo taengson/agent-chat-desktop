@@ -115,6 +115,51 @@ func TestBenchmarkSyncV2StoreStartsAndStopsDirectTLSEndpoint(t *testing.T) {
 	}
 }
 
+func TestGenerateBenchmarkSyncV2TLSCertificateRequestCreatesNewKeyAndCSR(t *testing.T) {
+	directory := t.TempDir()
+	privateKeyPath := filepath.Join(directory, "sync.example.test-key.pem")
+	requestPath := filepath.Join(directory, "sync.example.test.csr")
+	created, err := generateBenchmarkSyncV2TLSCertificateRequest("https://sync.example.test", privateKeyPath, requestPath)
+	if err != nil {
+		t.Fatalf("generateBenchmarkSyncV2TLSCertificateRequest() error = %v", err)
+	}
+	if created.Domain != "sync.example.test" || created.PrivateKeyPath != privateKeyPath || created.CertificateRequestPath != requestPath {
+		t.Fatalf("created TLS request = %#v", created)
+	}
+	privateKeyPEM, err := os.ReadFile(privateKeyPath)
+	if err != nil {
+		t.Fatalf("ReadFile(private key) error = %v", err)
+	}
+	privateKeyBlock, _ := pem.Decode(privateKeyPEM)
+	if privateKeyBlock == nil || privateKeyBlock.Type != "EC PRIVATE KEY" {
+		t.Fatalf("private key PEM = %q", privateKeyPEM)
+	}
+	if _, err := x509.ParseECPrivateKey(privateKeyBlock.Bytes); err != nil {
+		t.Fatalf("ParseECPrivateKey() error = %v", err)
+	}
+	requestPEM, err := os.ReadFile(requestPath)
+	if err != nil {
+		t.Fatalf("ReadFile(CSR) error = %v", err)
+	}
+	requestBlock, _ := pem.Decode(requestPEM)
+	if requestBlock == nil || requestBlock.Type != "CERTIFICATE REQUEST" {
+		t.Fatalf("CSR PEM = %q", requestPEM)
+	}
+	request, err := x509.ParseCertificateRequest(requestBlock.Bytes)
+	if err != nil {
+		t.Fatalf("ParseCertificateRequest() error = %v", err)
+	}
+	if err := request.CheckSignature(); err != nil {
+		t.Fatalf("CheckSignature() error = %v", err)
+	}
+	if len(request.DNSNames) != 1 || request.DNSNames[0] != "sync.example.test" {
+		t.Fatalf("CSR DNS names = %#v", request.DNSNames)
+	}
+	if _, err := generateBenchmarkSyncV2TLSCertificateRequest("https://sync.example.test", privateKeyPath, filepath.Join(directory, "second.csr")); err == nil {
+		t.Fatal("existing private key file was accepted for overwrite")
+	}
+}
+
 func TestBenchmarkSyncV2PairingRequiresBothApprovalsAndNeverExposesSecret(t *testing.T) {
 	certificatePath, privateKeyPath, certificatePEM := writeBenchmarkSyncV2TestCertificate(t, "sync.example.test")
 	listenAddress := reserveBenchmarkSyncV2TestListenAddress(t)

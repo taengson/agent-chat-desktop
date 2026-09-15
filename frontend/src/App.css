@@ -1304,6 +1304,36 @@ button:disabled {
     box-sizing: border-box;
 }
 
+.benchmark-sync-file-input {
+    display: flex;
+    min-width: 0;
+    gap: 7px;
+}
+
+.benchmark-sync-file-input input {
+    min-width: 0;
+    flex: 1;
+}
+
+.benchmark-sync-file-input .secondary-button {
+    flex: 0 0 auto;
+    height: 35px;
+    white-space: nowrap;
+}
+
+.benchmark-sync-tls-request {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 2px 0;
+}
+
+.benchmark-sync-tls-request small {
+    color: #85857d;
+    font-size: 9px;
+    line-height: 1.45;
+}
+
 .benchmark-sync-device-form .secondary-button,
 .benchmark-sync-code-row .primary-button,
 .benchmark-sync-connect-form .primary-button {

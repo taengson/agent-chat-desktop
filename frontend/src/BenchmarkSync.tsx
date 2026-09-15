@@ -1,4 +1,5 @@
 import {FormEvent, useCallback, useEffect, useState} from 'react';
+import {Dialogs} from '@wailsio/runtime';
 import {App as ChatService} from '../bindings/github.com/taengson/agent-chat-desktop';
 import type {BenchmarkSyncV2Invitation, BenchmarkSyncV2State} from '../bindings/github.com/taengson/agent-chat-desktop/models';
 
@@ -8,6 +9,10 @@ function formatTime(value: string): string {
     return new Intl.DateTimeFormat('ko-KR', {
         month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
     }).format(date);
+}
+
+function selectedFilePath(value: string | string[]): string {
+    return Array.isArray(value) ? value[0] || '' : value;
 }
 
 export default function BenchmarkSyncWorkspace() {
@@ -70,6 +75,57 @@ export default function BenchmarkSyncWorkspace() {
     function submitDirectTLS(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
         void runAction('direct-tls', () => ChatService.ConfigureBenchmarkSyncV2DirectTLS(publicHTTPSURL, certificatePath, privateKeyPath, listenAddress), 'v2 HTTPS 수신 endpoint를 시작했습니다.');
+    }
+
+    async function chooseTLSFile(kind: 'certificate' | 'private-key') {
+        if (busyAction) return;
+        setBusyAction(`choose-${kind}`);
+        setError('');
+        setNotice('');
+        try {
+            const path = selectedFilePath(await Dialogs.OpenFile({
+                Title: kind === 'certificate' ? 'TLS 인증서 파일 선택' : 'TLS 개인키 파일 선택',
+                ButtonText: '선택',
+                Filters: [{DisplayName: kind === 'certificate' ? 'TLS 인증서' : 'TLS 개인키', Pattern: '*.pem;*.crt;*.cer;*.key'}],
+            }));
+            if (!path) return;
+            if (kind === 'certificate') setCertificatePath(path);
+            else setPrivateKeyPath(path);
+        } catch (reason) {
+            setError(reason instanceof Error ? reason.message : String(reason));
+        } finally {
+            setBusyAction('');
+        }
+    }
+
+    async function createTLSCertificateRequest() {
+        if (busyAction || !publicHTTPSURL.trim()) return;
+        setBusyAction('create-tls-request');
+        setError('');
+        setNotice('');
+        try {
+            const privateKeyOutput = selectedFilePath(await Dialogs.SaveFile({
+                Title: '새 TLS 개인키 저장',
+                ButtonText: '개인키 저장',
+                Filename: 'benchmark-sync-tls-key.pem',
+                Filters: [{DisplayName: 'PEM 개인키', Pattern: '*.pem'}],
+            }));
+            if (!privateKeyOutput) return;
+            const certificateRequestOutput = selectedFilePath(await Dialogs.SaveFile({
+                Title: 'TLS 인증서 요청(CSR) 저장',
+                ButtonText: 'CSR 저장',
+                Filename: 'benchmark-sync-tls-request.csr',
+                Filters: [{DisplayName: '인증서 요청', Pattern: '*.csr'}],
+            }));
+            if (!certificateRequestOutput) return;
+            const created = await ChatService.GenerateBenchmarkSyncV2TLSCertificateRequest(publicHTTPSURL, privateKeyOutput, certificateRequestOutput);
+            setPrivateKeyPath(created.privateKeyPath);
+            setNotice(`${created.domain}용 TLS 개인키와 CSR을 만들었습니다. CSR을 CA에 제출하고, 발급받은 인증서 파일을 선택해 주세요.`);
+        } catch (reason) {
+            setError(reason instanceof Error ? reason.message : String(reason));
+        } finally {
+            setBusyAction('');
+        }
     }
 
     async function createInvitation() {
@@ -167,7 +223,7 @@ export default function BenchmarkSyncWorkspace() {
                     <button className="benchmark-sync-address" type="button" onClick={() => void copy(state?.identity.keyAgreementFingerprint || '', '암호화 fingerprint')} disabled={!state?.identity.keyAgreementFingerprint} title="클릭하여 복사">
                         {state?.identity.keyAgreementFingerprint || '불러오는 중…'}
                     </button>
-                    <small>개인키는 이 PC의 운영체제 비밀 저장소에만 보관됩니다.</small>
+                    <small>ANP 장치 신원 키는 이 화면을 처음 열 때 한 번 자동 생성되며, 개인키는 이 PC의 운영체제 비밀 저장소에만 보관됩니다. HTTPS 인증서 키와는 별개입니다.</small>
                 </section>
 
                 <section className="benchmark-sync-card">
@@ -180,20 +236,30 @@ export default function BenchmarkSyncWorkspace() {
                             <input value={publicHTTPSURL} onChange={(event) => setPublicHTTPSURL(event.target.value)} placeholder="예: https://sync.example.com" disabled={Boolean(busyAction)}/>
                         </label>
                         <label>
-                            <span>인증서 PEM 경로</span>
-                            <input value={certificatePath} onChange={(event) => setCertificatePath(event.target.value)} placeholder="예: /Users/me/certs/fullchain.pem" disabled={Boolean(busyAction)}/>
+                            <span>인증서 PEM 파일</span>
+                            <div className="benchmark-sync-file-input">
+                                <input value={certificatePath} readOnly placeholder="인증서 파일을 선택해 주세요" disabled={Boolean(busyAction)}/>
+                                <button className="secondary-button" type="button" disabled={Boolean(busyAction)} onClick={() => void chooseTLSFile('certificate')}>파일 선택</button>
+                            </div>
                         </label>
                         <label>
-                            <span>개인키 PEM 경로</span>
-                            <input value={privateKeyPath} onChange={(event) => setPrivateKeyPath(event.target.value)} placeholder="예: /Users/me/certs/privkey.pem" disabled={Boolean(busyAction)}/>
+                            <span>개인키 PEM 파일</span>
+                            <div className="benchmark-sync-file-input">
+                                <input value={privateKeyPath} readOnly placeholder="개인키 파일을 선택해 주세요" disabled={Boolean(busyAction)}/>
+                                <button className="secondary-button" type="button" disabled={Boolean(busyAction)} onClick={() => void chooseTLSFile('private-key')}>파일 선택</button>
+                            </div>
                         </label>
+                        <div className="benchmark-sync-tls-request">
+                            <button className="secondary-button" type="button" disabled={Boolean(busyAction) || !publicHTTPSURL.trim()} onClick={() => void createTLSCertificateRequest()}>TLS 키·CSR 만들기</button>
+                            <small>개인키와 인증서 요청 파일(CSR)을 새로 만듭니다. CA가 발급한 인증서 파일은 위에서 선택하세요.</small>
+                        </div>
                         <label>
                             <span>수신 주소</span>
                             <input value={listenAddress} onChange={(event) => setListenAddress(event.target.value)} placeholder="예: :8443" disabled={Boolean(busyAction)}/>
                         </label>
                         <button className="primary-button" type="submit" disabled={Boolean(busyAction) || !publicHTTPSURL.trim() || !certificatePath.trim() || !privateKeyPath.trim() || !listenAddress.trim()}>HTTPS 수신 시작</button>
                     </form>
-                    {state?.endpointStatus === 'listening' ? <div className="benchmark-sync-endpoint-status"><p className="form-notice">v2 HTTPS 수신 endpoint가 실행 중입니다. 현재는 안전한 상태 확인만 제공하며, 다음 단계에서 페어링을 엽니다.</p><button className="text-button" type="button" disabled={Boolean(busyAction)} onClick={() => void runAction('stop-endpoint', () => ChatService.StopBenchmarkSyncV2Endpoint(), 'v2 HTTPS 수신 endpoint를 중지했습니다.')}>수신 중지</button></div> : state?.endpointStatus === 'configured' ? <p className="benchmark-sync-empty">직접 TLS 설정을 저장했습니다. 앱을 다시 열면 자동으로 수신을 다시 시작합니다.</p> : state?.endpointStatus === 'needs-tls-configuration' ? <p className="benchmark-sync-empty">외부 HTTPS 주소는 저장되어 있습니다. 인증서 PEM, 개인키 PEM, 수신 주소를 입력해 직접 TLS 수신을 시작해 주세요.</p> : <p className="benchmark-sync-empty">공개 CA 또는 조직 CA 인증서를 준비해 주세요. 앱은 인증서의 도메인·개인키 일치를 확인하고, 연결하는 장치는 TLS 인증서 신뢰를 별도로 검증합니다.</p>}
+                    {state?.endpointStatus === 'listening' ? <div className="benchmark-sync-endpoint-status"><p className="form-notice">v2 HTTPS 수신 endpoint가 실행 중입니다. 상태 확인과 서명된 페어링 요청을 처리합니다.</p><button className="text-button" type="button" disabled={Boolean(busyAction)} onClick={() => void runAction('stop-endpoint', () => ChatService.StopBenchmarkSyncV2Endpoint(), 'v2 HTTPS 수신 endpoint를 중지했습니다.')}>수신 중지</button></div> : state?.endpointStatus === 'configured' ? <p className="benchmark-sync-empty">직접 TLS 설정을 저장했습니다. 앱을 다시 열면 자동으로 수신을 다시 시작합니다.</p> : state?.endpointStatus === 'needs-tls-configuration' ? <p className="benchmark-sync-empty">외부 HTTPS 주소는 저장되어 있습니다. 인증서 PEM, 개인키 PEM, 수신 주소를 선택해 직접 TLS 수신을 시작해 주세요.</p> : <p className="benchmark-sync-empty">공개 CA 또는 조직 CA 인증서를 준비해 주세요. 앱은 인증서의 도메인·개인키 일치를 확인하고, 연결하는 장치는 TLS 인증서 신뢰를 별도로 검증합니다.</p>}
                 </section>
             </section>
 

@@ -223,28 +223,35 @@ type ResponseMetrics struct {
 type App struct {
 	ctx context.Context
 
-	mu            sync.Mutex
-	cancels       map[string]context.CancelFunc
-	conversations *conversationStore
-	profiles      *connectionProfileStore
-	benchmarks    *modelBenchmarkStore
-	sync          *benchmarkSyncStore
-	eventSink     func(ChatEvent)
+	mu                 sync.Mutex
+	cancels            map[string]context.CancelFunc
+	conversations      *conversationStore
+	profiles           *connectionProfileStore
+	benchmarks         *modelBenchmarkStore
+	agenticEvaluations *agenticEvaluationStore
+	agenticActiveID    string
+	sync               *benchmarkSyncStore
+	eventSink          func(ChatEvent)
+	agenticEventSink   func(AgenticEvaluationEvent)
 }
 
 func NewApp() *App {
 	benchmarks := newModelBenchmarkStore("")
 	return &App{
-		cancels:       make(map[string]context.CancelFunc),
-		conversations: newConversationStore(""),
-		profiles:      newConnectionProfileStore(""),
-		benchmarks:    benchmarks,
-		sync:          newBenchmarkSyncStore("", benchmarks),
+		cancels:            make(map[string]context.CancelFunc),
+		conversations:      newConversationStore(""),
+		profiles:           newConnectionProfileStore(""),
+		benchmarks:         benchmarks,
+		agenticEvaluations: newAgenticEvaluationStore(""),
+		sync:               newBenchmarkSyncStore("", benchmarks),
 	}
 }
 
 func (a *App) ServiceStartup(ctx context.Context, _ application.ServiceOptions) error {
 	a.ctx = ctx
+	if err := a.agenticEvaluations.MarkInterrupted(); err != nil {
+		return err
+	}
 	return a.sync.ResetSession()
 }
 

@@ -13,6 +13,10 @@ export function ApproveBenchmarkSyncPairing(requestID: string): $CancellableProm
     return $Call.ByID(1241619706, requestID);
 }
 
+export function CancelAgenticEvaluation(id: string): $CancellablePromise<boolean> {
+    return $Call.ByID(1665828458, id);
+}
+
 export function CancelChat(requestID: string): $CancellablePromise<boolean> {
     return $Call.ByID(2522773405, requestID);
 }
@@ -35,6 +39,10 @@ export function CreateConversation(): $CancellablePromise<$models.Conversation> 
 
 export function CreateModelBenchmark(benchmark: $models.ModelBenchmark): $CancellablePromise<$models.ModelBenchmark> {
     return $Call.ByID(1784962657, benchmark);
+}
+
+export function DeleteAgenticEvaluation(id: string): $CancellablePromise<void> {
+    return $Call.ByID(1206529825, id);
 }
 
 export function DeleteBenchmarkSyncPeer(deviceID: string): $CancellablePromise<$models.BenchmarkSyncState> {
@@ -65,6 +73,14 @@ export function ImportBenchmarkReport(path: string): $CancellablePromise<$models
     return $Call.ByID(1730891493, path);
 }
 
+export function ListAgenticEvaluationScenarios(): $CancellablePromise<$models.AgenticEvaluationScenarioSummary[] | null> {
+    return $Call.ByID(396275063);
+}
+
+export function ListAgenticEvaluations(): $CancellablePromise<$models.AgenticEvaluationSummary[] | null> {
+    return $Call.ByID(3594639805);
+}
+
 export function ListConversations(): $CancellablePromise<$models.ConversationSummary[] | null> {
     return $Call.ByID(1664713955);
 }
@@ -83,6 +99,10 @@ export function ListSavedConnectionProfiles(): $CancellablePromise<$models.Saved
 
 export function LoadConnectionProfile(): $CancellablePromise<$models.SavedConnectionProfile> {
     return $Call.ByID(1786048502);
+}
+
+export function OpenAgenticEvaluation(id: string): $CancellablePromise<$models.AgenticEvaluation> {
+    return $Call.ByID(531987124, id);
 }
 
 export function OpenConversation(id: string): $CancellablePromise<$models.Conversation> {
@@ -129,6 +149,10 @@ export function SaveModelBenchmark(benchmark: $models.ModelBenchmark): $Cancella
 
 export function SaveNamedConnectionProfile(profile: $models.SavedConnectionProfile): $CancellablePromise<$models.SavedConnectionProfile> {
     return $Call.ByID(3901251290, profile);
+}
+
+export function StartAgenticEvaluation(request: $models.AgenticEvaluationStartRequest): $CancellablePromise<$models.AgenticEvaluation> {
+    return $Call.ByID(2806942, request);
 }
 
 export function StartBenchmarkSyncPairing(address: string, code: string): $CancellablePromise<$models.BenchmarkSyncState> {

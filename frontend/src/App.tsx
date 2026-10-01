@@ -24,6 +24,7 @@ import BenchmarkSyncWorkspace, {
     emptyBenchmarkSyncSidebar,
     type BenchmarkSyncSidebarState,
 } from './BenchmarkSync';
+import AgenticEvaluationWorkspace from './AgenticEvaluation';
 import OpenRouterModelPicker, {isOpenRouterURL} from './OpenRouterModelPicker';
 import {messagesForModel} from './chatContext';
 import {
@@ -606,9 +607,10 @@ function AssistantMessageContent({content}: {content: string}) {
 }
 
 function App() {
-    const [workspace, setWorkspace] = useState<'chat' | 'benchmark' | 'sync'>('chat');
+    const [workspace, setWorkspace] = useState<'chat' | 'benchmark' | 'agentic' | 'sync'>('chat');
     const [sidebarVisible, setSidebarVisible] = useState(true);
     const [benchmarkBusy, setBenchmarkBusy] = useState(false);
+    const [agenticBusy, setAgenticBusy] = useState(false);
     const [benchmarkSidebar, setBenchmarkSidebar] = useState<ModelBenchmarkSidebarState>(emptyBenchmarkSidebar);
     const [syncSidebar, setSyncSidebar] = useState<BenchmarkSyncSidebarState>(emptyBenchmarkSyncSidebar);
     const [syncRefreshKey, setSyncRefreshKey] = useState(0);
@@ -720,6 +722,10 @@ function App() {
 
     const handleBenchmarkBusyChange = useCallback((nextBusy: boolean) => {
         setBenchmarkBusy(nextBusy);
+    }, []);
+
+    const handleAgenticBusyChange = useCallback((nextBusy: boolean) => {
+        setAgenticBusy(nextBusy);
     }, []);
 
     const handleBenchmarkSidebarChange = useCallback((nextState: ModelBenchmarkSidebarState) => {
@@ -1771,7 +1777,7 @@ function App() {
                             setWorkspace('chat');
                             setConnectionSettingsOpen(false);
                         }}
-                        disabled={busy || benchmarkBusy}
+                        disabled={busy || benchmarkBusy || agenticBusy}
                     >
                         채팅
                     </button>
@@ -1782,15 +1788,26 @@ function App() {
                             setWorkspace('benchmark');
                             setConnectionSettingsOpen(false);
                         }}
-                        disabled={busy || benchmarkBusy}
+                        disabled={busy || benchmarkBusy || agenticBusy}
                     >
                         모델 실험실
+                    </button>
+                    <button
+                        className={workspace === 'agentic' ? 'active' : ''}
+                        type="button"
+                        onClick={() => {
+                            setWorkspace('agentic');
+                            setConnectionSettingsOpen(false);
+                        }}
+                        disabled={busy || benchmarkBusy || agenticBusy}
+                    >
+                        에이전트 실험
                     </button>
                     <button
                         className={`sync-workspace-button ${workspace === 'sync' ? 'active' : ''}`}
                         type="button"
                         onClick={openSyncWorkspace}
-                        disabled={busy || benchmarkBusy}
+                        disabled={busy || benchmarkBusy || agenticBusy}
                     >
                         <span>결과 동기화</span>
                         {syncSidebar.incomingRequests.length > 0 && <small className="workspace-sync-badge" aria-label={`받은 연결 요청 ${syncSidebar.incomingRequests.length}건`}>{syncSidebar.incomingRequests.length}</small>}
@@ -1988,6 +2005,13 @@ function App() {
                         </div>
                         <small>연결 프로필 {savedConnectionProfiles.length}개 · 기본 1개 포함</small>
                     </section>
+                ) : workspace === 'agentic' ? (
+                    <section className="agentic-sidebar" aria-label="에이전트 실험 안내">
+                        <div className="section-heading"><span>에이전트 실험</span></div>
+                        {agenticBusy ? <strong>순차 실행 중</strong> : <strong>가상 도구 평가</strong>}
+                        <p>모델이 문서와 업무 기록 환경에서 도구를 선택하고 목표 상태를 만드는 과정을 확인합니다.</p>
+                        <small>실제 파일·셸·네트워크에는 접근하지 않습니다.</small>
+                    </section>
                 ) : (
                     <section className="sync-sidebar" aria-label="결과 동기화">
                         <div className="section-heading"><span>결과 동기화</span></div>
@@ -2062,6 +2086,16 @@ function App() {
                         onOpenBenchmarkHandled={handleBenchmarkOpenRequestHandled}
                         historyRefreshKey={benchmarkHistoryRefreshKey}
                         onRequestBenchmarkDelete={requestBenchmarkDelete}
+                    />
+                </main>
+            ) : workspace === 'agentic' ? (
+                <main className="benchmark-panel">
+                    <AgenticEvaluationWorkspace
+                        profiles={savedConnectionProfiles}
+                        connectionAPIKey={apiKey}
+                        openRouterModelIDs={openRouterModelIDs}
+                        onOpenRouterModelIDsChange={applyOpenRouterModelIDs}
+                        onBusyChange={handleAgenticBusyChange}
                     />
                 </main>
             ) : workspace === 'sync' ? (

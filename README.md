@@ -55,6 +55,7 @@ macOS에서 DMG를 만들려면 `./scripts/macos/build.sh --dmg`를 사용합니
 
 - [에이전트 설치·빌드 안내](docs/agent-setup.md)
 - [상세 아키텍처](docs/architecture.md)
+- [로컬 모델 에이전트 실험 설계](docs/agentic-evaluation-design.md)
 - [개발 진행 현황](docs/progress.md)
 - [ANP 참고와 벤치마크 동기화](docs/anp-benchmark-sync.md)
 

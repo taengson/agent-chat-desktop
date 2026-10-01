@@ -116,7 +116,7 @@ export default function OpenRouterModelPicker({
                     <div>
                         <span>OPENROUTER</span>
                         <h2 id="openrouter-model-picker-title">모델 선택</h2>
-                        <p>{models.length}개 모델 중 필요한 모델만 골라 채팅과 벤치마크 목록에 넣습니다.</p>
+                        <p>{models.length}개 모델 중 필요한 모델만 골라 채팅과 실험 목록에 넣습니다.</p>
                     </div>
                     <button className="model-picker-close" type="button" onClick={onClose} aria-label="모델 선택 창 닫기">×</button>
                 </header>

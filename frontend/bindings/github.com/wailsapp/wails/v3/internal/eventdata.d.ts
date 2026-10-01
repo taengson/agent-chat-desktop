@@ -12,6 +12,7 @@ import type * as main$0 from "../../../../taengson/agent-chat-desktop/models.js"
 declare module "@wailsio/runtime" {
     namespace Events {
         interface CustomEvents {
+            "agentic-evaluation:event": main$0.AgenticEvaluationEvent;
             "chat:event": main$0.ChatEvent;
         }
     }

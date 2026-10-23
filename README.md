@@ -31,6 +31,18 @@
 
 ![Agent Chat 실무·개발 비교 화면](docs/benchmark-all-screen.png)
 
+### Decision Benchmark
+
+단일 업무영역 분류와 복합 업무 후보 순위 결과를 모델별로 함께 비교합니다.
+
+![Agent Chat Decision Benchmark 결과 비교 화면](docs/decision-test-screen.png)
+
+### 에이전트 실험
+
+문서·업무와 개발 시나리오의 모델별 통과 시간, 시나리오별 최종 결과와 저장된 실행 기록을 확인합니다.
+
+![Agent Chat 에이전트 실험 결과 화면](docs/agent-test-screen.png)
+
 ## 빠른 시작
 
 소스에서 실행하려면 Git, Go 1.25 이상, Node.js 20.19 이상 또는 22.12 이상이 필요합니다. macOS에는 Xcode Command Line Tools, Linux에는 GTK4·WebKitGTK 6.0 개발 패키지가 추가로 필요합니다.

@@ -111,6 +111,23 @@ func getDecisionModelCatalog(ctx context.Context, target DecisionTarget, token s
 		if len(out.Models) == 0 {
 			out.Message = "설치된 Decision 모델이 없습니다. 서버에서 모델을 설치한 뒤 목록을 새로고침하세요"
 		}
+	} else if target.Runtime == "nimble" {
+		data, status, e := decisionCatalogGET(ctx, target, token, "/health")
+		if e != nil {
+			return out, e
+		}
+		var health struct {
+			Status string `json:"status"`
+			Model  string `json:"model"`
+		}
+		if status == http.StatusOK && json.Unmarshal(data, &health) == nil && health.Status == "ok" && strings.TrimSpace(health.Model) != "" {
+			out.Models = append(out.Models, strings.TrimSpace(health.Model))
+			out.Available = true
+			out.Source = "server-loaded"
+			out.Message = "Nimble 서버가 현재 로드한 모델입니다"
+		} else {
+			out.Message = "Nimble 서버에서 모델 ID를 확인할 수 없습니다. 서버에 설정된 정확한 모델 ID를 직접 입력하세요"
+		}
 	} else {
 		data, status, e := decisionCatalogGET(ctx, target, token, "/v1/models")
 		if e != nil {
@@ -164,12 +181,15 @@ func getDecisionModelCatalog(ctx context.Context, target DecisionTarget, token s
 	return out, nil
 }
 func ensureDecisionModelInstalled(ctx context.Context, target DecisionTarget, token string) error {
-	if target.Runtime != "ollama" {
+	if target.Runtime != "ollama" && target.Runtime != "nimble" {
 		return nil
 	}
 	catalog, e := getDecisionModelCatalog(ctx, target, token)
 	if e != nil {
 		return e
+	}
+	if target.Runtime == "nimble" && !catalog.Available {
+		return nil
 	}
 	model := strings.TrimSpace(target.Model)
 	for _, name := range catalog.Models {
@@ -185,6 +205,9 @@ func ensureDecisionModelInstalled(ctx context.Context, target DecisionTarget, to
 	}
 	if len(alternatives) > 0 {
 		return fmt.Errorf("모델 %q는 설치된 정확한 태그와 다릅니다. 모델 목록에서 %s을 선택해 주세요", model, strings.Join(alternatives, ", "))
+	}
+	if target.Runtime == "nimble" {
+		return fmt.Errorf("모델 ID %q가 Nimble 서버의 로드 모델과 다릅니다. %s를 선택해 주세요", model, strings.Join(catalog.Models, ", "))
 	}
 	return fmt.Errorf("모델 %q가 설치된 Decision 모델 목록에 없습니다. 모델 목록을 새로고침해 선택해 주세요", model)
 }
@@ -219,7 +242,7 @@ func decisionHTTPError(status int, raw []byte, t DecisionTarget) error {
 		if strings.Contains(message, "model") && strings.Contains(message, "not found") {
 			return fmt.Errorf("서버에서 모델 %q를 찾을 수 없습니다. 설치된 정확한 모델 태그를 목록에서 선택해 주세요", strings.TrimSpace(t.Model))
 		}
-		return errors.New("서버에 Decision API 경로 /v1/systemone이 없습니다. 서버 프로그램·기본 주소와 Decision API 지원 버전을 확인해 주세요")
+		return fmt.Errorf("서버에 Decision API 경로 %s가 없습니다. 서버 프로그램과 기본 주소를 확인해 주세요", decisionAPIPath(t))
 	default:
 		return fmt.Errorf("서버 HTTP 오류 %d", status)
 	}

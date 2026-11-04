@@ -14,6 +14,10 @@ test('legacy examples migrate while custom work and target profiles survive',()=
  const old=createExampleDecisionDraft();old.targets[0].baseURL='http://spark:12300';const migrated=restoreDecisionDraft(JSON.stringify(old));assert.equal(migrated.suite.cases.length,40);assert.deepEqual(migrated.targets,old.targets.map(t=>t.runtime==='laya'?{...t,runtime:'systemone'}:t));
  old.suite.source='custom';old.targets=old.targets.map(t=>t.runtime==='laya'?{...t,runtime:'systemone'}:t);assert.deepEqual(restoreDecisionDraft(JSON.stringify(old)),old);
 });
+test('Bespoke Nimble server selections survive draft storage',()=>{
+ const draft=createDecisionDraft();draft.targets=[{...draft.targets[0],runtime:'nimble',baseURL:'http://spark:12300',model:'Bespoke-Nimble-9B'}];
+ assert.deepEqual(restoreDecisionDraft(JSON.stringify(draft)).targets,draft.targets);
+});
 test('JSON roundtrip preserves known provenance without accepting review completion or secrets',()=>{
  const s=createDecisionDraft().suite;const copy=parseDecisionSuite(JSON.stringify({...s,reviewStatus:'approved',apiKey:'secret'}));assert.equal(copy.sourceDocument,s.sourceDocument);assert.equal(copy.reviewStatus,'unreviewed');assert.equal(copy.cases[0].rationale,s.cases[0].rationale);assert.equal('apiKey' in copy,false);
 });

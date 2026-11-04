@@ -52,7 +52,7 @@ export interface DecisionSuite {
 export interface DecisionTarget {
     id: string;
     name: string;
-    runtime: 'laya' | 'ollama' | 'systemone';
+    runtime: 'laya' | 'ollama' | 'systemone' | 'nimble';
     baseURL: string;
     model: string;
     environment: string;
@@ -233,7 +233,7 @@ export function restoreDecisionDraft(contents: string): DecisionDraft {
         || !Array.isArray(value.types) || !value.types.every((type) => decisionTypes.includes(type))
         || !Array.isArray(value.targets) || !value.targets.every((target) => isObject(target)
             && ['id', 'name', 'baseURL', 'model', 'environment'].every((key) => typeof target[key] === 'string')
-            && ['laya', 'ollama', 'systemone'].includes(target.runtime as string) && typeof target.enabled === 'boolean')) {
+            && ['laya', 'ollama', 'systemone', 'nimble'].includes(target.runtime as string) && typeof target.enabled === 'boolean')) {
         throw new Error('설정 초안을 읽을 수 없습니다.');
     }
     const draft = value as unknown as DecisionDraft;
@@ -275,7 +275,8 @@ export function validateDecisionTargets(targets: DecisionTarget[]): string[] {
         if (!target.model.trim()) issues.push(`${target.name || '평가 대상'}: 모델을 선택해 주세요.`);
         try {
             const url = new URL(target.baseURL);
-            if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash || url.pathname.endsWith('/v1/systemone')) throw new Error();
+            const endpoint = target.runtime === 'nimble' ? '/decide' : '/v1/systemone';
+            if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash || url.pathname.endsWith(endpoint)) throw new Error();
         } catch { issues.push(`${target.name || '평가 대상'}: http(s) 서버 기본 주소를 입력해 주세요. 호출 경로와 인증 정보는 제외합니다.`); }
         return issues;
     });

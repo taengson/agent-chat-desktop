@@ -165,13 +165,19 @@ func callDecision(parent context.Context, t DecisionTarget, token string, task D
 	r := DecisionCaseResult{TargetID: t.ID, CaseID: c.ID, TaskID: task.ID, Expected: c.Expected, Status: "error"}
 	start := time.Now()
 	r.StartedAt = start.UTC().Format(time.RFC3339Nano)
-	body, err := buildDecisionRequest(t, task, c)
+	var body []byte
+	var err error
+	if t.Runtime == "nimble" {
+		body, err = buildNimbleRequest(task, c)
+	} else {
+		body, err = buildDecisionRequest(t, task, c)
+	}
 	if err != nil {
 		return r, err
 	}
 	ctx, cancel := context.WithTimeout(parent, time.Duration(seconds)*time.Second)
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(t.BaseURL, "/")+"/v1/systemone", strings.NewReader(string(body)))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(t.BaseURL, "/")+decisionAPIPath(t), strings.NewReader(string(body)))
 	if err != nil {
 		return r, errors.New("요청을 만들 수 없습니다")
 	}
@@ -197,6 +203,12 @@ func callDecision(parent context.Context, t DecisionTarget, token string, task D
 		case resp.StatusCode < 200 || resp.StatusCode >= 300:
 			err = decisionHTTPError(resp.StatusCode, raw, t)
 		default:
+			if t.Runtime == "nimble" {
+				raw, err = adaptNimbleResponse(raw, t.Model, task)
+			}
+			if err != nil {
+				break
+			}
 			// Remove the in-memory bearer token even if a server echoes it.
 			raw = redactDecisionToken(raw, token)
 			parsed, e := scoreDecisionResponse(raw, task, c)

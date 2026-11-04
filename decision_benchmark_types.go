@@ -218,7 +218,11 @@ func validateDecisionSuite(s DecisionSuite) error {
 }
 func validateDecisionTarget(t DecisionTarget) error {
 	u, e := url.Parse(strings.TrimSpace(t.BaseURL))
-	if e != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") || u.User != nil || u.RawQuery != "" || u.Fragment != "" || strings.HasSuffix(strings.TrimRight(u.Path, "/"), "/v1/systemone") || strings.TrimSpace(t.Model) == "" || t.ID == "" {
+	endpoint := "/v1/systemone"
+	if t.Runtime == "nimble" {
+		endpoint = "/decide"
+	}
+	if e != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") || u.User != nil || u.RawQuery != "" || u.Fragment != "" || strings.HasSuffix(strings.TrimRight(u.Path, "/"), endpoint) || strings.TrimSpace(t.Model) == "" || t.ID == "" {
 		return errors.New("서버 기본 URL과 모델 ID를 확인해 주세요. 인증 정보는 URL에 넣지 않습니다")
 	}
 	return nil

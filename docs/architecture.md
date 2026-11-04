@@ -306,7 +306,7 @@ UI에는 내부 오류 문자열을 그대로 전달하지 않고 다음과 같�
 
 2026-09-08 기준 로컬 LLM 채팅, 대화 저장, 문서 첨부와 모델 실험실이 동작합니다.
 
-- React UI에서 서버 URL과 선택적 API 키를 입력하고 `/v1/models`의 모델을 선택합니다.
+- React UI에서 서버 URL과 선택적 API 키를 입력합니다. Decision Benchmark는 Ollama, Bespoke Nimble, System One 호환 서버의 API 규약에 따라 모델을 조회하고 판단 요청을 보냅니다.
 - Go 백엔드의 OpenAI 호환 어댑터가 `/v1/chat/completions`에 스트리밍 요청을 보냅니다.
 - SSE 델타는 Wails의 `chat:event` 이벤트로 전달되며 UI가 응답을 실시간으로 갱신합니다.
 - 각 요청은 요청 ID와 취소 컨텍스트를 사용합니다. 프런트엔드의 중단 요청은 해당 HTTP 요청으로 전파됩니다. 일반 채팅은 출력이 계속 도착하는 동안 유지하고, 첫 출력 15분·출력 유휴 5분만 감시합니다.

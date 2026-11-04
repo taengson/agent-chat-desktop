@@ -380,7 +380,7 @@ export default function DecisionBenchmark({view, onViewChange, onSidebarChange}:
                         setDraft((current) => ({...current, targets: [...current.targets, {id, name: '새 평가 대상', runtime: 'systemone', baseURL: '', model: '', environment: '', enabled: true}]}));
                     }}>+ 모델 추가</button>
                 </div>
-                <p className="decision-muted">Laya 서버는 “기타 Decision API 호환 서버”를 선택하세요. 모든 서버는 같은 System One 평가 규약을 사용합니다.</p>
+                <p className="decision-muted">Ollama, Bespoke Nimble API, System One 호환 서버를 각각 선택할 수 있습니다. Laya 서버는 System One 호환 서버에 해당합니다.</p>
                 <div className="decision-target-grid">
                     {draft.targets.map((target, index) => <article className={`decision-target-card ${target.enabled ? 'selected' : ''}`} key={target.id}>
                         <div className="decision-target-title">
@@ -392,7 +392,7 @@ export default function DecisionBenchmark({view, onViewChange, onSidebarChange}:
                             }}>×</button>
                         </div>
                         <div className="decision-field-row">
-                            <label>서버 프로그램<select value={target.runtime} onChange={(event) => updateTarget(target.id, {runtime: event.target.value as DecisionTarget['runtime']})}><option value="ollama">Ollama</option><option value="systemone">기타 Decision API 호환 서버</option></select></label>
+                            <label>서버 프로그램<select value={target.runtime} onChange={(event) => updateTarget(target.id, {runtime: event.target.value as DecisionTarget['runtime']})}><option value="ollama">Ollama</option><option value="nimble">Bespoke Nimble API</option><option value="systemone">기타 Decision API 호환 서버 (System One)</option></select></label>
                         </div>
                         <label>서버 주소<input type="url" value={target.baseURL} onChange={(event) => updateTarget(target.id, {baseURL: event.target.value})} placeholder={target.runtime === 'ollama' ? 'http://localhost:11434' : 'http://192.168.0.10:12300'} spellCheck={false}/></label>
                         <div className="decision-model-picker">
@@ -402,7 +402,7 @@ export default function DecisionBenchmark({view, onViewChange, onSidebarChange}:
                             {target.runtime !== 'ollama' && (modelCatalogs[target.id]?.source === 'server-loaded' || modelCatalogs[target.id]?.available === false) && <label className="decision-manual-model-toggle"><input type="checkbox" checked={!!manualModels[target.id]} onChange={(event) => {setManualModels((items) => ({...items, [target.id]: event.target.checked})); updateTarget(target.id, {model: ''});}}/>모델 ID 직접 입력</label>}
                         </div>
                         <details className="decision-target-details"><summary>인증 설정</summary>
-                            <label>API 키 <small>선택 사항 · 저장하지 않음</small><input type="password" autoComplete="off" value={apiKeys[target.id] || ''} onChange={(event) => {setAPIKeys((current) => ({...current, [target.id]: event.target.value})); setModelCatalogs((items) => {const next = {...items}; delete next[target.id]; return next;}); setManualModels((items) => ({...items, [target.id]: false})); setConnectionChecks((items) => {const next = {...items}; delete next[target.id]; return next;});}} placeholder="인증이 필요한 서버에서만 입력"/></label>
+                            <label>API 키 <small>{target.runtime === 'nimble' ? 'Nimble 서버의 NIMBLE_API_KEY 값 · 저장하지 않음' : '선택 사항 · 저장하지 않음'}</small><input type="password" autoComplete="off" value={apiKeys[target.id] || ''} onChange={(event) => {setAPIKeys((current) => ({...current, [target.id]: event.target.value})); setModelCatalogs((items) => {const next = {...items}; delete next[target.id]; return next;}); setManualModels((items) => ({...items, [target.id]: false})); setConnectionChecks((items) => {const next = {...items}; delete next[target.id]; return next;});}} placeholder={target.runtime === 'nimble' ? '서버의 NIMBLE_API_KEY 입력' : '인증이 필요한 서버에서만 입력'}/></label>
                         </details>
                         <div className="decision-target-footer"><strong className={`decision-connection-badge ${connectionChecks[target.id]?.status || 'idle'}`}>{connectionChecks[target.id]?.status === 'success' ? '✓ 연결 확인' : connectionChecks[target.id]?.status === 'error' ? '! 연결 실패' : connectionChecks[target.id]?.status === 'checking' ? '확인 중…' : '연결 미확인'}</strong><button className="text-button" type="button" disabled={!target.model.trim() || !!checking || starting || activeRun?.status === 'running'} onClick={() => void checkConnection(target)}>{checking === target.id ? '확인 중…' : '연결 테스트'}</button></div>
                         {connectionChecks[target.id] && <div className={`decision-connection-result ${connectionChecks[target.id].status}`} role={connectionChecks[target.id].status === 'error' ? 'alert' : 'status'}><strong>{connectionChecks[target.id].status === 'success' ? '연결 테스트 성공' : connectionChecks[target.id].status === 'error' ? '연결 테스트 실패' : '연결 테스트 중'}</strong><span>{connectionChecks[target.id].message}</span></div>}

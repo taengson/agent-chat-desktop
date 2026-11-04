@@ -97,6 +97,10 @@ test('target configuration accepts private host URLs, checks only selected model
     const targets = createDecisionDraft().targets;
     targets[0].baseURL = 'http://spark-f8df:12300';
     assert.deepEqual(validateDecisionTargets(targets), []);
+    targets[0].runtime = 'nimble';
+    assert.deepEqual(validateDecisionTargets(targets), []);
+    targets[0].baseURL = 'http://spark-f8df:12300/decide';
+    assert.equal(validateDecisionTargets(targets).length, 1);
     targets[0].baseURL = 'http://user:password@spark-f8df:12300';
     assert.equal(validateDecisionTargets(targets).length, 1);
     targets[0].enabled = false;

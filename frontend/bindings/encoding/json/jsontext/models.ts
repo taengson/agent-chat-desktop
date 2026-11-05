@@ -8,7 +8,7 @@
  *   - a JSON number (e.g., 123.456)
  *   - an entire JSON object (e.g., {"fizz":"buzz"} )
  *   - an entire JSON array (e.g., [1,2,3] )
- *
+ * 
  * Value can represent entire array or object values, while [Token] cannot.
  * Value may contain leading and/or trailing whitespace.
  */

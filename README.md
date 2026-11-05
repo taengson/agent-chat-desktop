@@ -69,6 +69,7 @@ macOS에서 DMG를 만들려면 `./scripts/macos/build.sh --dmg`를 사용합니
 
 - [에이전트 설치·빌드 안내](docs/agent-setup.md)
 - [상세 아키텍처](docs/architecture.md)
+- [Bespoke-Nimble-9B API 직접 연결 가이드](docs/bespoke-nimble-9b-guide.md)
 - [로컬 모델 에이전트 실험 설계](docs/agentic-evaluation-design.md)
 - [Decision Benchmark 구현 계획](docs/decision-benchmark-implementation-plan.md)
 - [업무영역 질문 세트·평가 기준](docs/decision-benchmark-domain-question-set.md)
